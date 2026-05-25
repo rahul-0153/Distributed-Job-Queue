@@ -1,0 +1,67 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: job-queue-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - job-queue-network
+
+  mongodb:
+    image: mongo:7
+    container_name: job-queue-mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: jobqueue
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - job-queue-network
+
+  app:
+    build: .
+    container_name: job-queue-app
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      MONGODB_URI: mongodb://admin:password123@mongodb:27017/jobqueue?authSource=admin
+    depends_on:
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - job-queue-network
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  mongo_data:
+
+networks:
+  job-queue-network:
+    driver: bridge

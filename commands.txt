@@ -1,0 +1,11 @@
+1 — Start Redis + MongoDB 
+docker compose up redis mongodb -d
+
+2 — Install & start API
+npm install && npm run dev
+
+3 — Start workers (new terminal)
+npm run workers
+
+4 — Open dashboard
+open http://localhost:3000/dashboard
